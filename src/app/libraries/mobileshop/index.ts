@@ -1,6 +1,11 @@
+import { MOBILESHOP_GRAPHQL_API_ENDPOINT } from "../constants";
+import { isMobileShopError } from "../type-guards";
+import { ensureStartsWith } from "../utils";
 import { Cart, Connection, MobileShopCart } from "./type";
 
-const domain = process.env.
+const domain = process.env.MOBILESHOP_STORE_DOMAIN ? ensureStartsWith(process.env.MOBILESHOP_STORE_DOMAIN, 'https://') : '';
+const endpoint = `${domain}${MOBILESHOP_GRAPHQL_API_ENDPOINT}`
+const key = process.env.MOBILESHOP_STOREFRONT_ACCESS_TOKEN!;
 
 type ExtractVariables<T> = T extends { variables: object }
   ? T["variables"]
@@ -33,7 +38,34 @@ export async function mobileShopFetch<T>({
   variables?: ExtractVariables<T>;
 }): Promise<{ status: number; body: T } | never> {
   try {
-  } catch (error) {}
+    const result = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Storefront-Access-Token': key,
+        ...headers
+      },
+      body: JSON.stringify({
+        ...(query && {query}),
+        ...(variables && {variables})
+      })
+    });
+    const body = await result.json();
+
+    if(body.error) {
+      throw body.error[0];
+    }
+
+    return {
+      status: result.status,
+      body
+    };
+
+  } catch (e) {
+    if(isMobileShopError(e)) {
+      
+    }
+  }
 }
 
 export async function getCart(): Promise<Cart | undefined> {}
